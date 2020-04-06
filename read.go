@@ -5,17 +5,21 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"strings"
+
 	"github.com/Valdenirmezadri/go-whatsapp/binary"
 	"github.com/Valdenirmezadri/go-whatsapp/crypto/cbc"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
-	"io"
-	"io/ioutil"
-	"strings"
 )
 
 func (wac *Conn) readPump() {
-	defer wac.wg.Done()
+	defer func() {
+		wac.wg.Done()
+		_, _ = wac.Disconnect()
+	}()
 
 	var readErr error
 	var msgType int
@@ -31,7 +35,6 @@ func (wac *Conn) readPump() {
 		case <-readerFound:
 			if readErr != nil {
 				wac.handle(&ErrConnectionFailed{Err: readErr})
-				_, _ = wac.Disconnect()
 				return
 			}
 			msg, err := ioutil.ReadAll(reader)
