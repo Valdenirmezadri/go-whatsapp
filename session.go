@@ -18,7 +18,7 @@ import (
 )
 
 //represents the WhatsAppWeb client version
-var waVersion = []int{0, 4, 1307}
+var waVersion = []int{0, 4, 2080}
 
 /*
 Session contains session individual information. To be able to resume the connection without scanning the qr code
@@ -107,10 +107,10 @@ func CheckCurrentServerVersion() ([]int, error) {
 	}
 
 	b64ClientId := base64.StdEncoding.EncodeToString(clientId)
-	login := []interface{}{"admin", "init", waVersion, []string{wac.longClientName, wac.shortClientName}, b64ClientId, true}
+	login := []interface{}{"admin", "init", waVersion, []string{wac.longClientName, wac.shortClientName, wac.clientVersion}, b64ClientId, true}
 	loginChan, err := wac.writeJson(login)
 	if err != nil {
-		return nil, fmt.Errorf("error writing login", err)
+		return nil, fmt.Errorf("error writing login: %s", err.Error())
 	}
 
 	// Retrieve an answer from the websocket
@@ -123,7 +123,7 @@ func CheckCurrentServerVersion() ([]int, error) {
 
 	var resp map[string]interface{}
 	if err = json.Unmarshal([]byte(r), &resp); err != nil {
-		return nil, fmt.Errorf("error decoding login", err)
+		return nil, fmt.Errorf("error decoding login: %s", err.Error())
 	}
 
 	// Take the curr property as X.Y.Z and split it into as int slice
@@ -141,17 +141,17 @@ func CheckCurrentServerVersion() ([]int, error) {
 SetClientName sets the long and short client names that are sent to WhatsApp when logging in and displayed in the
 WhatsApp Web device list. As the values are only sent when logging in, changing them after logging in is not possible.
 */
-func (wac *Conn) SetClientName(long, short string) error {
+func (wac *Conn) SetClientName(long, short, version string) error {
 	if wac.session != nil && (wac.session.EncKey != nil || wac.session.MacKey != nil) {
 		return fmt.Errorf("cannot change client name after logging in")
 	}
-	wac.longClientName, wac.shortClientName = long, short
+	wac.longClientName, wac.shortClientName, wac.clientVersion = long, short, version
 	return nil
 }
 
 /*
 SetClientVersion sets WhatsApp client version
-Default value is 0.4.1307
+Default value is 0.4.2080
 */
 func (wac *Conn) SetClientVersion(major int, minor int, patch int) {
 	waVersion = []int{major, minor, patch}
@@ -172,13 +172,11 @@ github.com/Baozisoftware/qrcode-terminal-go Example login procedure:
 	if err != nil {
 		panic(err)
 	}
-
 	qr := make(chan string)
 	go func() {
 		terminal := qrcodeTerminal.New()
 		terminal.Get(<-qr).Print()
 	}()
-
 	session, err := wac.Login(qr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error during login: %v\n", err)
@@ -213,7 +211,7 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 	}
 
 	session.ClientId = base64.StdEncoding.EncodeToString(clientId)
-	login := []interface{}{"admin", "init", waVersion, []string{wac.longClientName, wac.shortClientName}, session.ClientId, true}
+	login := []interface{}{"admin", "init", waVersion, []string{wac.longClientName, wac.shortClientName, wac.clientVersion}, session.ClientId, true}
 	loginChan, err := wac.writeJson(login)
 	if err != nil {
 		return session, fmt.Errorf("error writing login: %v\n", err)
@@ -369,7 +367,7 @@ func (wac *Conn) Restore() error {
 	wac.listener.Unlock()
 
 	//admin init
-	init := []interface{}{"admin", "init", waVersion, []string{wac.longClientName, wac.shortClientName}, wac.session.ClientId, true}
+	init := []interface{}{"admin", "init", waVersion, []string{wac.longClientName, wac.shortClientName, wac.clientVersion}, wac.session.ClientId, true}
 	initChan, err := wac.writeJson(init)
 	if err != nil {
 		return fmt.Errorf("error writing admin init: %v\n", err)
