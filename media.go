@@ -99,8 +99,8 @@ type MediaConn struct {
 		Auth  string `json:"auth"`
 		TTL   int    `json:"ttl"`
 		Hosts []struct {
-			Hostname string   `json:"hostname"`
-			IPs      []string `json:"ips"`
+			Hostname string        `json:"hostname"`
+			IPs      []interface{} `json:"ips"`
 		} `json:"hosts"`
 	} `json:"media_conn"`
 }
