@@ -2,9 +2,10 @@ package whatsapp
 
 import (
 	"fmt"
-	"github.com/Valdenirmezadri/go-whatsapp/binary"
 	"strconv"
 	"time"
+
+	"github.com/Valdenirmezadri/go-whatsapp/binary"
 )
 
 // Pictures must be JPG 640x640 and 96x96, respectively

@@ -2,9 +2,10 @@ package whatsapp
 
 import (
 	"fmt"
-	"github.com/Valdenirmezadri/go-whatsapp/binary"
 	"strconv"
 	"time"
+
+	"github.com/Valdenirmezadri/go-whatsapp/binary"
 )
 
 type Presence string

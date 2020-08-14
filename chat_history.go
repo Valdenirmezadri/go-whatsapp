@@ -1,11 +1,12 @@
 package whatsapp
 
 import (
-	"github.com/Valdenirmezadri/go-whatsapp/binary"
-	"github.com/Valdenirmezadri/go-whatsapp/binary/proto"
 	"log"
 	"strconv"
 	"time"
+
+	"github.com/Valdenirmezadri/go-whatsapp/binary"
+	"github.com/Valdenirmezadri/go-whatsapp/binary/proto"
 )
 
 type MessageOffsetInfo struct {

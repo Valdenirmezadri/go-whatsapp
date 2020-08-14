@@ -1,8 +1,9 @@
 package whatsapp
 
 import (
-	"github.com/Valdenirmezadri/go-whatsapp/binary"
 	"strings"
+
+	"github.com/Valdenirmezadri/go-whatsapp/binary"
 )
 
 type Store struct {

@@ -88,6 +88,8 @@ type Conn struct {
 	Store          *Store
 	ServerLastSeen time.Time
 
+	timeTag string // last 3 digits obtained after a successful login takeover
+
 	longClientName  string
 	shortClientName string
 	clientVersion   string
@@ -120,7 +122,7 @@ func NewConn(timeout time.Duration) (*Conn, error) {
 		msgTimeout: timeout,
 		Store:      newStore(),
 
-		longClientName:  "github.com/Valdenirmezadri/go-whatsapp",
+		longClientName:  "github.com/rhymen/go-whatsapp",
 		shortClientName: "go-whatsapp",
 		clientVersion:   "0.1.0",
 	}
@@ -135,7 +137,7 @@ func NewConnWithProxy(timeout time.Duration, proxy func(*http.Request) (*url.URL
 		msgTimeout: timeout,
 		Store:      newStore(),
 
-		longClientName:  "github.com/Valdenirmezadri/go-whatsapp",
+		longClientName:  "github.com/rhymen/go-whatsapp",
 		shortClientName: "go-whatsapp",
 		clientVersion:   "0.1.0",
 		Proxy:           proxy,
@@ -156,8 +158,8 @@ func (wac *Conn) connect() (err error) {
 	}()
 
 	dialer := &websocket.Dialer{
-		ReadBufferSize:   25 * 1024 * 1024,
-		WriteBufferSize:  10 * 1024 * 1024,
+		ReadBufferSize:   0,
+		WriteBufferSize:  0,
 		HandshakeTimeout: wac.msgTimeout,
 		Proxy:            wac.Proxy,
 	}
@@ -245,4 +247,12 @@ func (wac *Conn) keepAlive(minIntervalMs int, maxIntervalMs int) {
 			return
 		}
 	}
+}
+
+func (wac *Conn) GetConnected() bool {
+	return wac.connected
+}
+
+func (wac *Conn) GetLoggedIn() bool {
+	return wac.loggedIn
 }
