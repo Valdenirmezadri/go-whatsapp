@@ -876,3 +876,34 @@ func ParseNodeMessage(msg binary.Node) interface{} {
 
 	return nil
 }
+
+func (wac *Conn) GetMessage(jid string, messageID string) (interface{}, error) {
+	proto, err := wac.getProtoMessage(jid, messageID)
+	if err != nil {
+		return nil, err
+	}
+	return ParseProtoMessage(proto), nil
+}
+
+func (wac *Conn) getProtoMessage(jid string, messageID string) (*proto.WebMessageInfo, error) {
+	for {
+		response, err := wac.LoadMessages(jid, messageID, 1)
+
+		if err != nil {
+			return nil, err
+		}
+
+		msgs := decodeMessages(response)
+
+		for _, message := range msgs {
+			if message.GetKey().GetId() == messageID {
+				return message, nil
+			}
+		}
+
+		if len(msgs) == 0 {
+			break
+		}
+	}
+	return nil, fmt.Errorf("message %s of number %ss not found", messageID, jid)
+}
