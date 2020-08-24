@@ -886,23 +886,17 @@ func (wac *Conn) GetMessage(jid string, messageID string) (interface{}, error) {
 }
 
 func (wac *Conn) getProtoMessage(jid string, messageID string) (*proto.WebMessageInfo, error) {
-	for {
-		response, err := wac.LoadMessages(jid, messageID, 1)
+	response, err := wac.LoadMessages(jid, messageID, 0)
 
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
+	}
 
-		msgs := decodeMessages(response)
+	msgs := decodeMessages(response)
 
-		for _, message := range msgs {
-			if message.GetKey().GetId() == messageID {
-				return message, nil
-			}
-		}
-
-		if len(msgs) == 0 {
-			break
+	for _, message := range msgs {
+		if message.GetKey().GetId() == messageID {
+			return message, nil
 		}
 	}
 	return nil, fmt.Errorf("message %s of number %ss not found", messageID, jid)
