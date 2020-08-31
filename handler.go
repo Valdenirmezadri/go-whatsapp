@@ -125,6 +125,14 @@ type ContactListHandler interface {
 	HandleContactList(contacts []Contact)
 }
 
+/*
+The ContactsArrayMessageHandler interface needs to be implemented to receive contacts dispatched by dispatcher.
+*/
+type ContactsArrayMessageHandler interface {
+	Handler
+	HandleContactsArrayMessage(message ContactsArrayMessage)
+}
+
 /**
 The ChatListHandler interface needs to be implemented to apply custom actions to chat lists dispatched by the dispatcher.
 */
@@ -290,6 +298,17 @@ func (wac *Conn) handleWithCustomHandlers(message interface{}, handlers []Handle
 					x.HandleContactMessage(m)
 				} else {
 					go x.HandleContactMessage(m)
+				}
+			}
+		}
+
+	case ContactsArrayMessage:
+		for _, h := range handlers {
+			if x, ok := h.(ContactsArrayMessageHandler); ok {
+				if wac.shouldCallSynchronously(h) {
+					x.HandleContactsArrayMessage(m)
+				} else {
+					go x.HandleContactsArrayMessage(m)
 				}
 			}
 		}
