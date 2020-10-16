@@ -2,13 +2,38 @@ package whatsapp
 
 import (
 	"strings"
-
+	"sync"
 	"github.com/Valdenirmezadri/go-whatsapp/binary"
 )
+var rwm sync.RWMutex
 
 type Store struct {
-	Contacts map[string]Contact
-	Chats    map[string]Chat
+	contacts map[string]Contact
+	chats    map[string]Chat
+}
+
+func (s Store) GetContact(Jid string) Contact {
+	rwm.RLock()
+	defer rwm.RUnlock()
+	return s.contacts[Jid]
+}
+
+func (s *Store) setContact(Jid string,c Contact) {
+	rwm.Lock()
+	defer rwm.Unlock()
+	s.contacts[Jid] = c
+}
+
+func (s Store) GetChat(Jid string) Chat {
+	rwm.RLock()
+	defer rwm.RUnlock()
+	return s.chats[Jid]
+}
+
+func (s *Store) setChat(Jid string,c Chat) {
+	rwm.Lock()
+	defer rwm.Unlock()
+	s.chats[Jid] = c
 }
 
 type Contact struct {
@@ -47,12 +72,12 @@ func (wac *Conn) updateContacts(contacts interface{}) {
 		}
 
 		jid := strings.Replace(contactNode.Attributes["jid"], "@c.us", "@s.whatsapp.net", 1)
-		wac.Store.Contacts[jid] = Contact{
+		wac.Store.setContact(jid, Contact{
 			jid,
 			contactNode.Attributes["notify"],
 			contactNode.Attributes["name"],
 			contactNode.Attributes["short"],
-		}
+		})
 	}
 }
 
@@ -69,13 +94,13 @@ func (wac *Conn) updateChats(chats interface{}) {
 		}
 
 		jid := strings.Replace(chatNode.Attributes["jid"], "@c.us", "@s.whatsapp.net", 1)
-		wac.Store.Chats[jid] = Chat{
+		wac.Store.setChat(jid, Chat{
 			jid,
 			chatNode.Attributes["name"],
 			chatNode.Attributes["count"],
 			chatNode.Attributes["t"],
 			chatNode.Attributes["mute"],
 			chatNode.Attributes["spam"],
-		}
+		})
 	}
 }
