@@ -12,10 +12,13 @@ type Store struct {
 	chats    map[string]Chat
 }
 
-func (s Store) GetContact(Jid string) Contact {
+func (s Store) GetContact(Jid string) *Contact {
 	rwm.RLock()
 	defer rwm.RUnlock()
-	return s.contacts[Jid]
+	if u, ok := s.contacts[Jid]; ok {
+		return &u
+	}
+	return nil
 }
 
 func (s *Store) setContact(Jid string,c Contact) {
@@ -24,10 +27,13 @@ func (s *Store) setContact(Jid string,c Contact) {
 	s.contacts[Jid] = c
 }
 
-func (s Store) GetChat(Jid string) Chat {
+func (s Store) GetChat(Jid string) *Chat {
 	rwm.RLock()
 	defer rwm.RUnlock()
-	return s.chats[Jid]
+	if c, ok := s.chats[Jid]; ok {
+		return &c
+	}
+	return nil
 }
 
 func (s *Store) setChat(Jid string,c Chat) {
