@@ -12,11 +12,25 @@ type Store struct {
 	chats    map[string]Chat
 }
 
+func (s Store) GetContacts() []*Contact {
+	contacts := []*Contact{}
+	rwm.RLock()
+	defer rwm.RUnlock()
+	if s.contacts != nil {
+		for _, contact := range s.contacts {
+			contacts = append(contacts, &contact)
+		}
+	}
+	return contacts
+}
+
 func (s Store) GetContact(Jid string) *Contact {
 	rwm.RLock()
 	defer rwm.RUnlock()
-	if u, ok := s.contacts[Jid]; ok {
-		return &u
+	if s.contacts != nil {
+		if u, ok := s.contacts[Jid]; ok {
+			return &u
+		}
 	}
 	return nil
 }
@@ -24,14 +38,30 @@ func (s Store) GetContact(Jid string) *Contact {
 func (s *Store) setContact(Jid string,c Contact) {
 	rwm.Lock()
 	defer rwm.Unlock()
-	s.contacts[Jid] = c
+	if s.contacts != nil {
+		s.contacts[Jid] = c
+	}
+}
+
+func (s Store) GetChats() []*Chat {
+	chats := []*Chat{}
+	rwm.RLock()
+	defer rwm.RUnlock()
+	if s.chats != nil {
+		for _, chat := range s.chats {
+			chats = append(chats, &chat)
+		}
+	}
+	return chats
 }
 
 func (s Store) GetChat(Jid string) *Chat {
 	rwm.RLock()
 	defer rwm.RUnlock()
-	if c, ok := s.chats[Jid]; ok {
-		return &c
+	if s.chats != nil {
+		if c, ok := s.chats[Jid]; ok {
+			return &c
+		}
 	}
 	return nil
 }
@@ -39,7 +69,9 @@ func (s Store) GetChat(Jid string) *Chat {
 func (s *Store) setChat(Jid string,c Chat) {
 	rwm.Lock()
 	defer rwm.Unlock()
-	s.chats[Jid] = c
+	if s.chats != nil {
+		s.chats[Jid] = c
+	}
 }
 
 type Contact struct {
