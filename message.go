@@ -21,7 +21,6 @@ const (
 	MediaVideo    MediaType = "WhatsApp Video Keys"
 	MediaAudio    MediaType = "WhatsApp Audio Keys"
 	MediaDocument MediaType = "WhatsApp Document Keys"
-	MediaSticker  MediaType = "WhatsApp Sticker Keys"
 )
 
 func (wac *Conn) Send(msg interface{}) (string, error) {
@@ -62,7 +61,7 @@ func (wac *Conn) Send(msg interface{}) (string, error) {
 		msgProto = getAudioProto(m)
 	case StickerMessage:
 		var err error
-		m.url, m.mediaKey, m.fileEncSha256, m.fileSha256, m.fileLength, err = wac.Upload(m.Content, MediaSticker)
+		m.url, m.mediaKey, m.fileEncSha256, m.fileSha256, m.fileLength, err = wac.Upload(m.Content, MediaImage)
 		if err != nil {
 			return "ERROR", fmt.Errorf("sticker upload failed: %v", err)
 		}

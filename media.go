@@ -144,7 +144,6 @@ var mediaTypeMap = map[MediaType]string{
 	MediaVideo:    "/mms/video",
 	MediaDocument: "/mms/document",
 	MediaAudio:    "/mms/audio",
-	MediaSticker:  "/mms/sticker",
 }
 
 func (wac *Conn) Upload(reader io.Reader, appInfo MediaType) (downloadURL string, mediaKey []byte, fileEncSha256 []byte, fileSha256 []byte, fileLength uint64, err error) {
