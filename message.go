@@ -21,6 +21,7 @@ const (
 	MediaVideo    MediaType = "WhatsApp Video Keys"
 	MediaAudio    MediaType = "WhatsApp Audio Keys"
 	MediaDocument MediaType = "WhatsApp Document Keys"
+	MediaSticker  MediaType = "WhatsApp Sticker Keys"
 )
 
 func (wac *Conn) Send(msg interface{}) (string, error) {
@@ -59,6 +60,13 @@ func (wac *Conn) Send(msg interface{}) (string, error) {
 			return "ERROR", fmt.Errorf("audio upload failed: %v", err)
 		}
 		msgProto = getAudioProto(m)
+	case StickerMessage:
+		var err error
+		m.url, m.mediaKey, m.fileEncSha256, m.fileSha256, m.fileLength, err = wac.Upload(m.Content, MediaSticker)
+		if err != nil {
+			return "ERROR", fmt.Errorf("sticker upload failed: %v", err)
+		}
+		msgProto = getStickerProto(m)
 	case LocationMessage:
 		msgProto = GetLocationProto(m)
 	case LiveLocationMessage:
@@ -535,6 +543,23 @@ func getAudioProto(msg AudioMessage) *proto.WebMessageInfo {
 			Mimetype:      &msg.Type,
 			ContextInfo:   contextInfo,
 			Ptt:           &msg.Ptt,
+		},
+	}
+	return p
+}
+
+func getStickerProto(msg StickerMessage) *proto.WebMessageInfo {
+	p := getInfoProto(&msg.Info)
+	contextInfo := getContextInfoProto(&msg.ContextInfo)
+	p.Message = &proto.Message{
+		AudioMessage: &proto.AudioMessage{
+			Url:           &msg.url,
+			MediaKey:      msg.mediaKey,
+			FileEncSha256: msg.fileEncSha256,
+			FileSha256:    msg.fileSha256,
+			FileLength:    &msg.fileLength,
+			Mimetype:      &msg.Type,
+			ContextInfo:   contextInfo,
 		},
 	}
 	return p
