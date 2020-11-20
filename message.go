@@ -238,7 +238,7 @@ func getMessageInfo(msg *proto.WebMessageInfo) MessageInfo {
 	return MessageInfo{
 		Id:        msg.GetKey().GetId(),
 		RemoteJid: msg.GetKey().GetRemoteJid(),
-		SenderJid: msg.GetKey().GetParticipant(),
+		SenderJid: msg.GetParticipant(),
 		FromMe:    msg.GetKey().GetFromMe(),
 		Timestamp: msg.GetMessageTimestamp(),
 		Status:    MessageStatus(msg.GetStatus()),
@@ -906,10 +906,21 @@ func getBatteryMessage(msg map[string]string) BatteryMessage {
 	return batteryMessage
 }
 
+func getNewContact(msg map[string]string) Contact {
+	contact := Contact{
+		Jid:    msg["jid"],
+		Notify: msg["notify"],
+	}
+
+	return contact
+}
+
 func ParseNodeMessage(msg binary.Node) interface{} {
 	switch msg.Description {
 	case "battery":
 		return getBatteryMessage(msg.Attributes)
+	case "user":
+		return getNewContact(msg.Attributes)
 	default:
 		//cannot match message
 	}

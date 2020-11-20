@@ -3,8 +3,10 @@ package whatsapp
 import (
 	"strings"
 	"sync"
+
 	"github.com/Valdenirmezadri/go-whatsapp/binary"
 )
+
 var rwm sync.RWMutex
 
 type Store struct {
@@ -35,7 +37,7 @@ func (s Store) GetContact(Jid string) *Contact {
 	return nil
 }
 
-func (s *Store) setContact(Jid string,c Contact) {
+func (s *Store) setContact(Jid string, c Contact) {
 	rwm.Lock()
 	defer rwm.Unlock()
 	if s.contacts != nil {
@@ -66,7 +68,7 @@ func (s Store) GetChat(Jid string) *Chat {
 	return nil
 }
 
-func (s *Store) setChat(Jid string,c Chat) {
+func (s *Store) setChat(Jid string, c Chat) {
 	rwm.Lock()
 	defer rwm.Unlock()
 	if s.chats != nil {
