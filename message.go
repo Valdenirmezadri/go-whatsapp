@@ -63,7 +63,7 @@ func (wac *Conn) Send(msg interface{}) (string, error) {
 		var err error
 		m.url, m.mediaKey, m.fileEncSha256, m.fileSha256, m.fileLength, err = wac.Upload(m.Content, MediaImage)
 		if err != nil {
-			return "ERROR", fmt.Errorf("image upload failed: %v", err)
+			return "ERROR", fmt.Errorf("sticker upload failed: %v", err)
 		}
 		msgProto = getStickerProto(m)
 	case LocationMessage:
