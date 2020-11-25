@@ -128,6 +128,32 @@ func (wac *Conn) Read(jid, id string) (<-chan string, error) {
 	return wac.writeBinary(n, group, ignore, tag)
 }
 
+//PlayedAudio response
+func (wac *Conn) PlayedAudio(jid, id string) (<-chan string, error) {
+	ts := time.Now().Unix()
+	tag := fmt.Sprintf("%d.--%d", ts, wac.msgCount)
+
+	n := binary.Node{
+		Description: "action",
+		Attributes: map[string]string{
+			"type":  "set",
+			"epoch": strconv.Itoa(wac.msgCount),
+		},
+		Content: []interface{}{
+			binary.Node{
+				Description: "received",
+				Attributes: map[string]string{
+					"index": id,
+					"type":  "played",
+					"from":  jid,
+				},
+				Content: "None",
+			},
+		},
+	}
+	return wac.writeBinary(n, message, ignore, tag)
+}
+
 func (wac *Conn) query(t, jid, messageId, kind, owner, search string, count, page int) (*binary.Node, error) {
 	ts := time.Now().Unix()
 	tag := fmt.Sprintf("%d.--%d", ts, wac.msgCount)
