@@ -38,7 +38,7 @@ func Download(url string, mediaKey []byte, appInfo MediaType, fileLength int) ([
 		return nil, err
 	}
 	if len(data) != fileLength {
-		return nil, fmt.Errorf("file length does not match")
+		return data, ErrMediaFileLengthDoesNotMatch
 	}
 	return data, nil
 }
