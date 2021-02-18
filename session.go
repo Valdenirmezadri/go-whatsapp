@@ -325,12 +325,12 @@ func (wac *Conn) RestoreWithSession(session Session) (_ Session, err error) {
 	if wac.loggedIn {
 		return Session{}, ErrAlreadyLoggedIn
 	}
-	old := wac.session
+	/* old := wac.session
 	defer func() {
 		if err != nil {
 			wac.session = old
 		}
-	}()
+	}() */
 	wac.session = &session
 
 	if err = wac.Restore(); err != nil {
