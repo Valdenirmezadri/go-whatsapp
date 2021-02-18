@@ -172,11 +172,13 @@ github.com/Baozisoftware/qrcode-terminal-go Example login procedure:
 	if err != nil {
 		panic(err)
 	}
+
 	qr := make(chan string)
 	go func() {
 		terminal := qrcodeTerminal.New()
 		terminal.Get(<-qr).Print()
 	}()
+
 	session, err := wac.Login(qr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error during login: %v\n", err)

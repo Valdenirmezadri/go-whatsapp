@@ -19,12 +19,12 @@ var (
 	ErrInvalidHmac                 = errors.New("invalid hmac")
 	ErrInvalidServerResponse       = errors.New("invalid response received from server")
 	ErrServerRespondedWith404      = errors.New("server responded with status 404")
+	ErrInvalidWebsocket            = errors.New("invalid websocket")
+	ErrMessageTypeNotImplemented   = errors.New("message type not implemented")
+	ErrOptionsNotProvided          = errors.New("new conn options not provided")
 	ErrMediaDownloadFailedWith404  = errors.New("download failed with status code 404")
 	ErrMediaDownloadFailedWith410  = errors.New("download failed with status code 410")
 	ErrMediaFileLengthDoesNotMatch = errors.New("file length does not match")
-	ErrInvalidWebsocket            = errors.New("invalid websocket")
-
-	ErrOptionsNotProvided = errors.New("new conn options not provided")
 )
 
 type ErrConnectionFailed struct {

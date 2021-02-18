@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -99,8 +100,11 @@ type MediaConn struct {
 		Auth  string `json:"auth"`
 		TTL   int    `json:"ttl"`
 		Hosts []struct {
-			Hostname string        `json:"hostname"`
-			IPs      []interface{} `json:"ips"`
+			Hostname string `json:"hostname"`
+			IPs      []struct {
+				IP4 net.IP `json:"ip4"`
+				IP6 net.IP `json:"ip6"`
+			} `json:"ips"`
 		} `json:"hosts"`
 	} `json:"media_conn"`
 }
@@ -122,21 +126,17 @@ func (wac *Conn) queryMediaConn() (hostname, auth string, ttl int, err error) {
 		return "", "", 0, fmt.Errorf("query media conn timed out")
 	}
 
-	if resp.Status != 200 {
+	if resp.Status != http.StatusOK {
 		return "", "", 0, fmt.Errorf("query media conn responded with %d", resp.Status)
 	}
 
-	var host string
 	for _, h := range resp.MediaConn.Hosts {
 		if h.Hostname != "" {
-			host = h.Hostname
-			break
+			return h.Hostname, resp.MediaConn.Auth, resp.MediaConn.TTL, nil
 		}
 	}
-	if host == "" {
-		return "", "", 0, fmt.Errorf("query media conn responded with no host")
-	}
-	return host, resp.MediaConn.Auth, resp.MediaConn.TTL, nil
+
+	return "", "", 0, fmt.Errorf("query media conn responded with no host")
 }
 
 var mediaTypeMap = map[MediaType]string{
@@ -199,7 +199,7 @@ func (wac *Conn) Upload(reader io.Reader, appInfo MediaType) (downloadURL string
 
 	body := bytes.NewReader(append(enc, mac...))
 
-	req, err := http.NewRequest("POST", uploadURL.String(), body)
+	req, err := http.NewRequest(http.MethodPost, uploadURL.String(), body)
 	if err != nil {
 		return "", nil, nil, nil, 0, err
 	}
@@ -219,7 +219,9 @@ func (wac *Conn) Upload(reader io.Reader, appInfo MediaType) (downloadURL string
 	}
 
 	var jsonRes map[string]string
-	json.NewDecoder(res.Body).Decode(&jsonRes)
+	if err := json.NewDecoder(res.Body).Decode(&jsonRes); err != nil {
+		return "", nil, nil, nil, 0, err
+	}
 
 	return jsonRes["url"], mediaKey, fileEncSha256, fileSha256, fileLength, nil
 }

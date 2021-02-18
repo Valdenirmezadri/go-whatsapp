@@ -278,10 +278,12 @@ func (wac *Conn) keepAlive(minIntervalMs int, maxIntervalMs int) {
 	}
 }
 
-func (wac *Conn) GetConnected() bool {
+// IsConnected returns whether the server connection is established or not
+func (wac *Conn) IsConnected() bool {
 	return wac.connected
 }
 
-func (wac *Conn) GetLoggedIn() bool {
+//IsLoggedIn returns whether the you are logged in or not
+func (wac *Conn) IsLoggedIn() bool {
 	return wac.loggedIn
 }
