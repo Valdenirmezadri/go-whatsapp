@@ -476,9 +476,30 @@ func (wac *Conn) Restore() error {
 	wac.Info = newInfoFromReq(info)
 
 	//set new tokens
-	wac.session.ClientToken = info["clientToken"].(string)
-	wac.session.ServerToken = info["serverToken"].(string)
-	wac.session.Wid = info["wid"].(string)
+	clientToken, ok := info["clientToken"].(string)
+	if !ok {
+		wac.loggedIn = false
+		return fmt.Errorf("Client token not found: %s", clientToken)
+	}
+	wac.session.ClientToken = clientToken
+
+	serverToken, ok := info["serverToken"].(string)
+	if !ok {
+		wac.loggedIn = false
+		return fmt.Errorf("Server token not found: %s", serverToken)
+	}
+	wac.session.ServerToken = serverToken
+
+	wid, ok := info["wid"].(string)
+	if !ok {
+		wac.loggedIn = false
+		return fmt.Errorf("Wid not found: %s", wid)
+	}
+	wac.session.Wid = wid
+
+	//wac.session.ClientToken = info["clientToken"].(string)
+	//wac.session.ServerToken = info["serverToken"].(string)
+	//wac.session.Wid = info["wid"].(string)
 	wac.loggedIn = true
 
 	return nil
