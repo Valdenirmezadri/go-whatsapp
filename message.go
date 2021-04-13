@@ -12,6 +12,7 @@ import (
 
 	"github.com/Valdenirmezadri/go-whatsapp/binary"
 	"github.com/Valdenirmezadri/go-whatsapp/binary/proto"
+	"github.com/pkg/errors"
 )
 
 type MediaType string
@@ -903,7 +904,7 @@ func ParseProtoMessage(msg *proto.WebMessageInfo) interface{} {
 
 	default:
 		//cannot match message
-		return ErrMessageTypeNotImplemented
+		return errors.Wrapf(ErrMessageTypeNotImplemented, "Type: %+v", msg.MessageStubType)
 	}
 }
 

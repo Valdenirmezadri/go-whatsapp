@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 
 //represents the WhatsAppWeb client version
 var waVersion = []int{2, 2039, 9}
+var rmwVersion = &sync.RWMutex{}
 
 /*
 Session contains session individual information. To be able to resume the connection without scanning the qr code
@@ -107,7 +109,9 @@ func CheckCurrentServerVersion() ([]int, error) {
 	}
 
 	b64ClientId := base64.StdEncoding.EncodeToString(clientId)
+	rmwVersion.RLock()
 	login := []interface{}{"admin", "init", waVersion, []string{wac.longClientName, wac.shortClientName, wac.clientVersion}, b64ClientId, true}
+	rmwVersion.RUnlock()
 	loginChan, err := wac.writeJson(login)
 	if err != nil {
 		return nil, fmt.Errorf("error writing login: %s", err.Error())
@@ -154,11 +158,15 @@ SetClientVersion sets WhatsApp client version
 Default value is 0.4.2080
 */
 func (wac *Conn) SetClientVersion(major int, minor int, patch int) {
+	rmwVersion.Lock()
+	defer rmwVersion.Unlock()
 	waVersion = []int{major, minor, patch}
 }
 
 // GetClientVersion returns WhatsApp client version
 func (wac *Conn) GetClientVersion() []int {
+	rmwVersion.RLock()
+	defer rmwVersion.RUnlock()
 	return waVersion
 }
 
@@ -193,7 +201,7 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 	}
 	defer atomic.StoreUint32(&wac.sessionLock, 0)
 
-	if wac.loggedIn {
+	if wac.IsLoggedIn() {
 		return session, ErrAlreadyLoggedIn
 	}
 
@@ -213,7 +221,9 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 	}
 
 	session.ClientId = base64.StdEncoding.EncodeToString(clientId)
+	rmwVersion.RLock()
 	login := []interface{}{"admin", "init", waVersion, []string{wac.longClientName, wac.shortClientName, wac.clientVersion}, session.ClientId, true}
+	rmwVersion.RUnlock()
 	loginChan, err := wac.writeJson(login)
 	if err != nil {
 		return session, fmt.Errorf("error writing login: %v\n", err)
@@ -314,7 +324,7 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 	session.EncKey = keyDecrypted[:32]
 	session.MacKey = keyDecrypted[32:64]
 	wac.session = &session
-	wac.loggedIn = true
+	wac.isLoggedIn(true)
 
 	return session, nil
 }
@@ -324,15 +334,15 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 Basically the old RestoreSession functionality
 */
 func (wac *Conn) RestoreWithSession(session Session) (_ Session, err error) {
-	if wac.loggedIn {
+	if wac.IsLoggedIn() {
 		return Session{}, ErrAlreadyLoggedIn
 	}
-	/* old := wac.session
+	old := wac.session
 	defer func() {
 		if err != nil {
 			wac.session = old
 		}
-	}() */
+	}()
 	wac.session = &session
 
 	if err = wac.Restore(); err != nil {
@@ -363,7 +373,7 @@ func (wac *Conn) Restore() error {
 		return err
 	}
 
-	if wac.loggedIn {
+	if wac.IsLoggedIn() {
 		return ErrAlreadyLoggedIn
 	}
 
@@ -374,7 +384,9 @@ func (wac *Conn) Restore() error {
 	wac.listener.Unlock()
 
 	//admin init
+	rmwVersion.RLock()
 	init := []interface{}{"admin", "init", waVersion, []string{wac.longClientName, wac.shortClientName, wac.clientVersion}, wac.session.ClientId, true}
+	rmwVersion.RUnlock()
 	initChan, err := wac.writeJson(init)
 	if err != nil {
 		return fmt.Errorf("error writing admin init: %v\n", err)
@@ -475,24 +487,29 @@ func (wac *Conn) Restore() error {
 
 	wac.Info = newInfoFromReq(info)
 
+	if wac.session == nil {
+		wac.isLoggedIn(false)
+		return fmt.Errorf("Server session not found: %s", wac.session)
+	}
 	//set new tokens
 	clientToken, ok := info["clientToken"].(string)
 	if !ok {
-		wac.loggedIn = false
+		wac.isLoggedIn(false)
 		return fmt.Errorf("Client token not found: %s", clientToken)
 	}
+
 	wac.session.ClientToken = clientToken
 
 	serverToken, ok := info["serverToken"].(string)
 	if !ok {
-		wac.loggedIn = false
+		wac.isLoggedIn(false)
 		return fmt.Errorf("Server token not found: %s", serverToken)
 	}
 	wac.session.ServerToken = serverToken
 
 	wid, ok := info["wid"].(string)
 	if !ok {
-		wac.loggedIn = false
+		wac.isLoggedIn(false)
 		return fmt.Errorf("Wid not found: %s", wid)
 	}
 	wac.session.Wid = wid
@@ -500,7 +517,7 @@ func (wac *Conn) Restore() error {
 	//wac.session.ClientToken = info["clientToken"].(string)
 	//wac.session.ServerToken = info["serverToken"].(string)
 	//wac.session.Wid = info["wid"].(string)
-	wac.loggedIn = true
+	wac.isLoggedIn(true)
 
 	return nil
 }
@@ -544,9 +561,9 @@ func (wac *Conn) Logout() error {
 	login := []interface{}{"admin", "Conn", "disconnect"}
 	_, err := wac.writeJson(login)
 	if err != nil {
-		return fmt.Errorf("error writing logout: %v\n", err)
+		return fmt.Errorf("error writing logout: %v", err)
 	}
 	wac.session = nil
-	wac.loggedIn = false
+	wac.isLoggedIn(false)
 	return nil
 }
