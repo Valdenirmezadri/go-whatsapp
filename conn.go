@@ -80,9 +80,11 @@ type Conn struct {
 	statusConnectionLock sync.RWMutex
 	wg                   *sync.WaitGroup
 
-	session        *Session
-	sessionLock    uint32
-	handler        []Handler
+	session     *Session
+	sessionLock uint32
+	handler     []Handler
+	handlerLock *sync.RWMutex
+
 	msgCount       int
 	msgTimeout     time.Duration
 	Info           *Info
@@ -150,12 +152,15 @@ func NewConnWithOptions(opt *Options) (*Conn, error) {
 		msgCount:        0,
 		msgTimeout:      opt.Timeout,
 		Store:           newStore(),
+		handlerLock:     new(sync.RWMutex),
 		longClientName:  "github.com/Valdenirmezadri/go-whatsapp",
 		shortClientName: "go-whatsapp",
 		clientVersion:   "0.1.0",
 	}
 	if opt.Handler != nil {
+		wac.handlerLock.Lock()
 		wac.handler = opt.Handler
+		wac.handlerLock.Unlock()
 	}
 	if opt.Store != nil {
 		wac.Store = opt.Store
