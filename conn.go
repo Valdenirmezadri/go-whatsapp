@@ -72,13 +72,14 @@ Conn is created by NewConn. Interacting with the initialized Conn is the main wa
 It holds all necessary information to make the package work internally.
 */
 type Conn struct {
-	ws       *websocketWrapper
+	ws *websocketWrapper
+	//connLock sync.RWMutex
 	listener *listenerWrapper
 
-	connected            bool
-	loggedIn             bool
-	statusConnectionLock sync.RWMutex
-	wg                   *sync.WaitGroup
+	connected bool
+	loggedIn  bool
+	//statusConnectionLock sync.RWMutex
+	wg *sync.WaitGroup
 
 	session     *Session
 	sessionLock uint32
@@ -97,8 +98,8 @@ type Conn struct {
 	shortClientName string
 	clientVersion   string
 
-	loginSessionLock sync.RWMutex
-	Proxy            func(*http.Request) (*url.URL, error)
+	//loginSessionLock sync.RWMutex
+	Proxy func(*http.Request) (*url.URL, error)
 
 	writerLock sync.RWMutex
 }
@@ -245,7 +246,10 @@ func (wac *Conn) Disconnect() (Session, error) {
 	wac.wg.Wait()       //wait for close
 
 	err := wac.ws.conn.Close()
+
+	wac.writerLock.Lock()
 	wac.ws = nil
+	wac.writerLock.Unlock()
 
 	if wac.session == nil {
 		return Session{}, err
@@ -286,28 +290,28 @@ func (wac *Conn) keepAlive(minIntervalMs int, maxIntervalMs int) {
 
 // IsConnected set whether the server connection is established or not
 func (wac *Conn) isConnected(b bool) {
-	wac.statusConnectionLock.Lock()
-	defer wac.statusConnectionLock.Unlock()
+	wac.writerLock.Lock()
+	defer wac.writerLock.Unlock()
 	wac.connected = b
 }
 
 //IsLoggedIn set whether the you are logged in or not
 func (wac *Conn) isLoggedIn(b bool) {
-	wac.statusConnectionLock.Lock()
-	defer wac.statusConnectionLock.Unlock()
+	wac.writerLock.Lock()
+	defer wac.writerLock.Unlock()
 	wac.loggedIn = b
 }
 
 // IsConnected returns whether the server connection is established or not
 func (wac *Conn) IsConnected() bool {
-	wac.statusConnectionLock.RLock()
-	defer wac.statusConnectionLock.RUnlock()
+	wac.writerLock.RLock()
+	defer wac.writerLock.RUnlock()
 	return wac.connected
 }
 
 //IsLoggedIn returns whether the you are logged in or not
 func (wac *Conn) IsLoggedIn() bool {
-	wac.statusConnectionLock.RLock()
-	defer wac.statusConnectionLock.RUnlock()
+	wac.writerLock.RLock()
+	defer wac.writerLock.RUnlock()
 	return wac.loggedIn
 }

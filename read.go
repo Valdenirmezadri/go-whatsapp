@@ -86,9 +86,9 @@ func (wac *Conn) processReadData(msgType int, msg []byte) error {
 		close(listener)
 		wac.removeListener(data[0])
 	} else if msgType == websocket.BinaryMessage {
-		wac.loginSessionLock.RLock()
+		wac.writerLock.RLock()
 		sess := wac.session
-		wac.loginSessionLock.RUnlock()
+		wac.writerLock.RUnlock()
 		if sess == nil || sess.MacKey == nil || sess.EncKey == nil {
 			return ErrInvalidWsState
 		}

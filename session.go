@@ -264,8 +264,6 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 	var resp2 []interface{}
 	select {
 	case r1 := <-s1:
-		wac.loginSessionLock.Lock()
-		defer wac.loginSessionLock.Unlock()
 		if err := json.Unmarshal([]byte(r1), &resp2); err != nil {
 			return session, fmt.Errorf("error decoding qr code resp: %v", err)
 		}
@@ -275,7 +273,9 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 
 	info := resp2[1].(map[string]interface{})
 
+	wac.writerLock.Lock()
 	wac.Info = newInfoFromReq(info)
+	wac.writerLock.Unlock()
 
 	session.ClientToken = info["clientToken"].(string)
 	session.ServerToken = info["serverToken"].(string)
@@ -323,7 +323,11 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 
 	session.EncKey = keyDecrypted[:32]
 	session.MacKey = keyDecrypted[32:64]
+
+	wac.writerLock.Lock()
 	wac.session = &session
+	wac.writerLock.Unlock()
+
 	wac.isLoggedIn(true)
 
 	return session, nil

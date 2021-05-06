@@ -158,7 +158,11 @@ func (wac *Conn) sendAdminTest() (bool, error) {
 
 func (wac *Conn) write(messageType int, data []byte) error {
 
-	if wac == nil || wac.ws == nil {
+	if wac == nil {
+		return ErrInvalidWebsocket
+	}
+
+	if wac.ws == nil {
 		return ErrInvalidWebsocket
 	}
 
