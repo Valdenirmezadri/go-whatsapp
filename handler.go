@@ -164,11 +164,15 @@ handlers(TextMessageHandler, ImageMessageHandler) are optional. At runtime it is
 and they are called if so and needed.
 */
 func (wac *Conn) AddHandler(handler Handler) {
+	wac.handlerLock.Lock()
+	defer wac.handlerLock.Unlock()
 	wac.handler = append(wac.handler, handler)
 }
 
 // RemoveHandler removes a handler from the list of handlers that receive dispatched messages.
 func (wac *Conn) RemoveHandler(handler Handler) bool {
+	wac.handlerLock.Lock()
+	defer wac.handlerLock.Unlock()
 	i := -1
 	for k, v := range wac.handler {
 		if v == handler {
@@ -185,6 +189,8 @@ func (wac *Conn) RemoveHandler(handler Handler) bool {
 
 // RemoveHandlers empties the list of handlers that receive dispatched messages.
 func (wac *Conn) RemoveHandlers() {
+	wac.handlerLock.Lock()
+	defer wac.handlerLock.Unlock()
 	wac.handler = make([]Handler, 0)
 }
 
@@ -198,6 +204,8 @@ func (wac *Conn) handle(message interface{}) {
 }
 
 func (wac *Conn) handleWithCustomHandlers(message interface{}, handlers []Handler) {
+	wac.handlerLock.Lock()
+	defer wac.handlerLock.Unlock()
 	switch m := message.(type) {
 	case error:
 		for _, h := range handlers {
@@ -358,6 +366,8 @@ func (wac *Conn) handleWithCustomHandlers(message interface{}, handlers []Handle
 }
 
 func (wac *Conn) handleContacts(contacts interface{}) {
+	wac.handlerLock.Lock()
+	defer wac.handlerLock.Unlock()
 	var contactList []Contact
 	c, ok := contacts.([]interface{})
 	if !ok {
@@ -389,6 +399,8 @@ func (wac *Conn) handleContacts(contacts interface{}) {
 }
 
 func (wac *Conn) handleChats(chats interface{}) {
+	wac.handlerLock.Lock()
+	defer wac.handlerLock.Unlock()
 	var chatList []Chat
 	c, ok := chats.([]interface{})
 	if !ok {

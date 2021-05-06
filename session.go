@@ -19,7 +19,7 @@ import (
 )
 
 //represents the WhatsAppWeb client version
-var waVersion = []int{2, 2039, 9}
+var waVersion = []int{2, 2110, 10}
 var rmwVersion = &sync.RWMutex{}
 
 /*
@@ -211,7 +211,7 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 
 	//logged in?!?
 	if wac.session != nil && (wac.session.EncKey != nil || wac.session.MacKey != nil) {
-		return session, fmt.Errorf("already logged in")
+		return session, ErrAlreadyLoggedIn
 	}
 
 	clientId := make([]byte, 16)
