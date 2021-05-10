@@ -86,10 +86,6 @@ type Conn struct {
 	handler     []Handler
 	handlerLock *sync.RWMutex
 
-	session        *Session
-	sessionLock    uint32
-	handler        []Handler
-	handlerLock    sync.RWMutex
 	msgCount       int
 	msgTimeout     time.Duration
 	Info           *Info

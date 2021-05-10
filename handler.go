@@ -167,7 +167,6 @@ func (wac *Conn) AddHandler(handler Handler) {
 	wac.handlerLock.Lock()
 	defer wac.handlerLock.Unlock()
 	wac.handler = append(wac.handler, handler)
-	wac.handlerLock.Unlock()
 }
 
 // RemoveHandler removes a handler from the list of handlers that receive dispatched messages.
@@ -202,13 +201,13 @@ func (wac *Conn) shouldCallSynchronously(handler Handler) bool {
 
 func (wac *Conn) handle(message interface{}) {
 	wac.handlerLock.RLock()
-	defer wac.handlerLock.RUnlock()
-	wac.handleWithCustomHandlers(message, wac.handler)
+	handlers := wac.handler
+	wac.handlerLock.RUnlock()
+
+	wac.handleWithCustomHandlers(message, handlers)
 }
 
 func (wac *Conn) handleWithCustomHandlers(message interface{}, handlers []Handler) {
-	wac.handlerLock.Lock()
-	defer wac.handlerLock.Unlock()
 	switch m := message.(type) {
 	case error:
 		for _, h := range handlers {
@@ -369,8 +368,6 @@ func (wac *Conn) handleWithCustomHandlers(message interface{}, handlers []Handle
 }
 
 func (wac *Conn) handleContacts(contacts interface{}) {
-	wac.handlerLock.Lock()
-	defer wac.handlerLock.Unlock()
 	var contactList []Contact
 	c, ok := contacts.([]interface{})
 	if !ok {
@@ -402,8 +399,6 @@ func (wac *Conn) handleContacts(contacts interface{}) {
 }
 
 func (wac *Conn) handleChats(chats interface{}) {
-	wac.handlerLock.Lock()
-	defer wac.handlerLock.Unlock()
 	var chatList []Chat
 	c, ok := chats.([]interface{})
 	if !ok {
