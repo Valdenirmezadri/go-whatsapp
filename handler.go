@@ -167,6 +167,7 @@ func (wac *Conn) AddHandler(handler Handler) {
 	wac.handlerLock.Lock()
 	defer wac.handlerLock.Unlock()
 	wac.handler = append(wac.handler, handler)
+	wac.handlerLock.Unlock()
 }
 
 // RemoveHandler removes a handler from the list of handlers that receive dispatched messages.
@@ -200,6 +201,8 @@ func (wac *Conn) shouldCallSynchronously(handler Handler) bool {
 }
 
 func (wac *Conn) handle(message interface{}) {
+	wac.handlerLock.RLock()
+	defer wac.handlerLock.RUnlock()
 	wac.handleWithCustomHandlers(message, wac.handler)
 }
 
