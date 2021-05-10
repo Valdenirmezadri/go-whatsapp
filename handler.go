@@ -164,11 +164,15 @@ handlers(TextMessageHandler, ImageMessageHandler) are optional. At runtime it is
 and they are called if so and needed.
 */
 func (wac *Conn) AddHandler(handler Handler) {
+	wac.handlerLock.Lock()
 	wac.handler = append(wac.handler, handler)
+	wac.handlerLock.Unlock()
 }
 
 // RemoveHandler removes a handler from the list of handlers that receive dispatched messages.
 func (wac *Conn) RemoveHandler(handler Handler) bool {
+	wac.handlerLock.Lock()
+	defer wac.handlerLock.Unlock()
 	i := -1
 	for k, v := range wac.handler {
 		if v == handler {
@@ -185,6 +189,8 @@ func (wac *Conn) RemoveHandler(handler Handler) bool {
 
 // RemoveHandlers empties the list of handlers that receive dispatched messages.
 func (wac *Conn) RemoveHandlers() {
+	wac.handlerLock.Lock()
+	defer wac.handlerLock.Unlock()
 	wac.handler = make([]Handler, 0)
 }
 
@@ -194,6 +200,8 @@ func (wac *Conn) shouldCallSynchronously(handler Handler) bool {
 }
 
 func (wac *Conn) handle(message interface{}) {
+	wac.handlerLock.RLock()
+	defer wac.handlerLock.RUnlock()
 	wac.handleWithCustomHandlers(message, wac.handler)
 }
 

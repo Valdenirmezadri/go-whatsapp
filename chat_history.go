@@ -44,7 +44,9 @@ func (wac *Conn) LoadChatMessages(jid string, count int, messageId string, owner
 	}
 
 	if handlers == nil {
+		wac.handlerLock.RLock()
 		handlers = wac.handler
+		wac.handlerLock.RUnlock()
 	}
 
 	kind := "before"
@@ -78,7 +80,9 @@ func (wac *Conn) LoadFullChatHistory(jid string, chunkSize int,
 	}
 
 	if handlers == nil {
+		wac.handlerLock.RLock()
 		handlers = wac.handler
+		wac.handlerLock.RUnlock()
 	}
 
 	beforeMsg := ""
