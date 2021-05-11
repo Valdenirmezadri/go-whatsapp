@@ -159,9 +159,7 @@ func NewConnWithOptions(opt *Options) (*Conn, error) {
 		clientVersion:   "0.1.0",
 	}
 	if opt.Handler != nil {
-		wac.handlerLock.Lock()
 		wac.handler = opt.Handler
-		wac.handlerLock.Unlock()
 	}
 	if opt.Store != nil {
 		wac.Store = opt.Store
