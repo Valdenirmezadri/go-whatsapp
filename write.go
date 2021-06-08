@@ -32,9 +32,6 @@ func (wac *Conn) writeJson(data []interface{}) (<-chan string, error) {
 
 	ch := make(chan string, 1)
 
-	wac.writerLock.Lock()
-	defer wac.writerLock.Unlock()
-
 	d, err := json.Marshal(data)
 	if err != nil {
 		close(ch)
@@ -42,7 +39,7 @@ func (wac *Conn) writeJson(data []interface{}) (<-chan string, error) {
 	}
 
 	ts := time.Now().Unix()
-	messageTag := fmt.Sprintf("%d.--%d", ts, wac.msgCount)
+	messageTag := fmt.Sprintf("%d.--%d", ts, wac.getMsgCount())
 	bytes := []byte(fmt.Sprintf("%s,%s", messageTag, d))
 
 	if wac.timeTag == "" {
@@ -52,14 +49,16 @@ func (wac *Conn) writeJson(data []interface{}) (<-chan string, error) {
 
 	wac.addListener(ch, messageTag)
 
+	wac.writerLock.Lock()
 	err = wac.write(websocket.TextMessage, bytes)
+	wac.writerLock.Unlock()
 	if err != nil {
 		close(ch)
 		wac.removeListener(messageTag)
 		return ch, err
 	}
 
-	wac.msgCount++
+	wac.msgCount()
 	return ch, nil
 }
 
@@ -71,9 +70,6 @@ func (wac *Conn) writeBinary(node binary.Node, metric metric, flag flag, message
 		close(ch)
 		return ch, ErrMissingMessageTag
 	}
-
-	wac.writerLock.Lock()
-	defer wac.writerLock.Unlock()
 
 	data, err := wac.encryptBinaryMessage(node)
 	if err != nil {
@@ -87,14 +83,16 @@ func (wac *Conn) writeBinary(node binary.Node, metric metric, flag flag, message
 
 	wac.addListener(ch, messageTag)
 
+	wac.writerLock.Lock()
 	err = wac.write(websocket.BinaryMessage, bytes)
+	wac.writerLock.Unlock()
 	if err != nil {
 		close(ch)
 		wac.removeListener(messageTag)
 		return ch, errors.Wrap(err, "failed to write message")
 	}
 
-	wac.msgCount++
+	wac.msgCount()
 	return ch, nil
 }
 
@@ -104,7 +102,9 @@ func (wac *Conn) sendKeepAlive() error {
 	wac.addListener(respChan, "!")
 
 	bytes := []byte("?,,")
+	wac.writerLock.Lock()
 	err := wac.write(websocket.TextMessage, bytes)
+	wac.writerLock.Unlock()
 	if err != nil {
 		close(respChan)
 		wac.removeListener("!")
@@ -166,6 +166,9 @@ func (wac *Conn) write(messageType int, data []byte) error {
 		return ErrInvalidWebsocket
 	}
 
+	wac.wg.Add(1)
+	defer wac.wg.Done()
+
 	wac.ws.Lock()
 	err := wac.ws.conn.WriteMessage(messageType, data)
 	wac.ws.Unlock()
@@ -182,13 +185,16 @@ func (wac *Conn) encryptBinaryMessage(node binary.Node) (data []byte, err error)
 	if err != nil {
 		return nil, errors.Wrap(err, "binary node marshal failed")
 	}
-
-	cipher, err := cbc.Encrypt(wac.session.EncKey, nil, b)
+	session, err := wac.session()
+	if err != nil {
+		return nil, err
+	}
+	cipher, err := cbc.Encrypt(session.EncKey, nil, b)
 	if err != nil {
 		return nil, errors.Wrap(err, "encrypt failed")
 	}
 
-	h := hmac.New(sha256.New, wac.session.MacKey)
+	h := hmac.New(sha256.New, session.MacKey)
 	h.Write(cipher)
 	hash := h.Sum(nil)
 

@@ -106,7 +106,7 @@ func (wac *Conn) sendProto(p *proto.WebMessageInfo) (<-chan string, error) {
 		Description: "action",
 		Attributes: map[string]string{
 			"type":  "relay",
-			"epoch": strconv.Itoa(wac.msgCount),
+			"epoch": strconv.Itoa(wac.getMsgCount()),
 		},
 		Content: []interface{}{p},
 	}
@@ -177,7 +177,7 @@ func (wac *Conn) DeleteMessage(remotejid, msgid string, fromMe bool) error {
 }
 
 func (wac *Conn) deleteChatProto(remotejid, msgid string, fromMe bool) (<-chan string, error) {
-	tag := fmt.Sprintf("%s.--%d", wac.timeTag, wac.msgCount)
+	tag := fmt.Sprintf("%s.--%d", wac.timeTag, wac.getMsgCount())
 
 	owner := "true"
 	if !fromMe {
@@ -186,7 +186,7 @@ func (wac *Conn) deleteChatProto(remotejid, msgid string, fromMe bool) (<-chan s
 	n := binary.Node{
 		Description: "action",
 		Attributes: map[string]string{
-			"epoch": strconv.Itoa(wac.msgCount),
+			"epoch": strconv.Itoa(wac.getMsgCount()),
 			"type":  "set",
 		},
 		Content: []interface{}{

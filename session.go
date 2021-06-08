@@ -109,9 +109,8 @@ func CheckCurrentServerVersion() ([]int, error) {
 	}
 
 	b64ClientId := base64.StdEncoding.EncodeToString(clientId)
-	rmwVersion.RLock()
-	login := []interface{}{"admin", "init", waVersion, []string{wac.longClientName, wac.shortClientName, wac.clientVersion}, b64ClientId, true}
-	rmwVersion.RUnlock()
+
+	login := []interface{}{"admin", "init", GetClientVersion(), []string{wac.longClientName, wac.shortClientName, wac.clientVersion}, b64ClientId, true}
 	loginChan, err := wac.writeJson(login)
 	if err != nil {
 		return nil, fmt.Errorf("error writing login: %s", err.Error())
@@ -146,9 +145,11 @@ SetClientName sets the long and short client names that are sent to WhatsApp whe
 WhatsApp Web device list. As the values are only sent when logging in, changing them after logging in is not possible.
 */
 func (wac *Conn) SetClientName(long, short string, version string) error {
-	if wac.session != nil && (wac.session.EncKey != nil || wac.session.MacKey != nil) {
+	_, err := wac.session()
+	if err == nil {
 		return fmt.Errorf("cannot change client name after logging in")
 	}
+
 	wac.longClientName, wac.shortClientName, wac.clientVersion = long, short, version
 	return nil
 }
@@ -164,7 +165,7 @@ func (wac *Conn) SetClientVersion(major int, minor int, patch int) {
 }
 
 // GetClientVersion returns WhatsApp client version
-func (wac *Conn) GetClientVersion() []int {
+func GetClientVersion() []int {
 	rmwVersion.RLock()
 	defer rmwVersion.RUnlock()
 	return waVersion
@@ -208,22 +209,20 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 	if err := wac.connect(); err != nil && err != ErrAlreadyConnected {
 		return session, err
 	}
-
 	//logged in?!?
-	if wac.session != nil && (wac.session.EncKey != nil || wac.session.MacKey != nil) {
+	_, err := wac.session()
+	if err == nil {
 		return session, ErrAlreadyLoggedIn
 	}
 
 	clientId := make([]byte, 16)
-	_, err := rand.Read(clientId)
+	_, err = rand.Read(clientId)
 	if err != nil {
 		return session, fmt.Errorf("error creating random ClientId: %v", err)
 	}
 
 	session.ClientId = base64.StdEncoding.EncodeToString(clientId)
-	rmwVersion.RLock()
-	login := []interface{}{"admin", "init", waVersion, []string{wac.longClientName, wac.shortClientName, wac.clientVersion}, session.ClientId, true}
-	rmwVersion.RUnlock()
+	login := []interface{}{"admin", "init", GetClientVersion(), []string{wac.longClientName, wac.shortClientName, wac.clientVersion}, session.ClientId, true}
 	loginChan, err := wac.writeJson(login)
 	if err != nil {
 		return session, fmt.Errorf("error writing login: %v\n", err)
@@ -270,12 +269,9 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 	case <-time.After(time.Duration(resp["ttl"].(float64)) * time.Millisecond):
 		return session, fmt.Errorf("qr code scan timed out")
 	}
-
 	info := resp2[1].(map[string]interface{})
 
-	wac.writerLock.Lock()
 	wac.Info = newInfoFromReq(info)
-	wac.writerLock.Unlock()
 
 	session.ClientToken = info["clientToken"].(string)
 	session.ServerToken = info["serverToken"].(string)
@@ -324,9 +320,7 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 	session.EncKey = keyDecrypted[:32]
 	session.MacKey = keyDecrypted[32:64]
 
-	wac.writerLock.Lock()
-	wac.session = &session
-	wac.writerLock.Unlock()
+	wac.setSession(session)
 
 	wac.isLoggedIn(true)
 
@@ -341,19 +335,20 @@ func (wac *Conn) RestoreWithSession(session Session) (_ Session, err error) {
 	if wac.IsLoggedIn() {
 		return Session{}, ErrAlreadyLoggedIn
 	}
-	old := wac.session
+	old, _ := wac.session()
 	defer func() {
 		if err != nil {
-			wac.session = old
+			wac.setSession(old)
 		}
 	}()
-	wac.session = &session
+	wac.setSession(session)
 
 	if err = wac.Restore(); err != nil {
-		wac.session = nil
+		wac.setSession(Session{})
 		return Session{}, err
 	}
-	return *wac.session, nil
+
+	return wac.session()
 }
 
 /*//TODO: GoDoc
@@ -369,7 +364,8 @@ func (wac *Conn) Restore() error {
 	}
 	defer atomic.StoreUint32(&wac.sessionLock, 0)
 
-	if wac.session == nil {
+	session, err := wac.session()
+	if err != nil {
 		return ErrInvalidSession
 	}
 
@@ -388,16 +384,14 @@ func (wac *Conn) Restore() error {
 	wac.listener.Unlock()
 
 	//admin init
-	rmwVersion.RLock()
-	init := []interface{}{"admin", "init", waVersion, []string{wac.longClientName, wac.shortClientName, wac.clientVersion}, wac.session.ClientId, true}
-	rmwVersion.RUnlock()
+	init := []interface{}{"admin", "init", GetClientVersion(), []string{wac.longClientName, wac.shortClientName, wac.clientVersion}, session.ClientId, true}
 	initChan, err := wac.writeJson(init)
 	if err != nil {
 		return fmt.Errorf("error writing admin init: %v\n", err)
 	}
 
 	//admin login with takeover
-	login := []interface{}{"admin", "login", wac.session.ClientToken, wac.session.ServerToken, wac.session.ClientId, "takeover"}
+	login := []interface{}{"admin", "login", session.ClientToken, session.ServerToken, session.ClientId, "takeover"}
 	loginChan, err := wac.writeJson(login)
 	if err != nil {
 		return fmt.Errorf("error writing admin login: %v\n", err)
@@ -488,12 +482,12 @@ func (wac *Conn) Restore() error {
 	}
 
 	info := connResp[1].(map[string]interface{})
-
 	wac.Info = newInfoFromReq(info)
 
-	if wac.session == nil {
+	session, err = wac.session()
+	if err != nil {
 		wac.isLoggedIn(false)
-		return fmt.Errorf("Server session not found: %s", wac.session)
+		return fmt.Errorf("Server session not found: %s", session)
 	}
 	//set new tokens
 	clientToken, ok := info["clientToken"].(string)
@@ -502,25 +496,26 @@ func (wac *Conn) Restore() error {
 		return fmt.Errorf("Client token not found: %s", clientToken)
 	}
 
-	wac.session.ClientToken = clientToken
+	session.ClientToken = clientToken
 
 	serverToken, ok := info["serverToken"].(string)
 	if !ok {
 		wac.isLoggedIn(false)
 		return fmt.Errorf("Server token not found: %s", serverToken)
 	}
-	wac.session.ServerToken = serverToken
+	session.ServerToken = serverToken
 
 	wid, ok := info["wid"].(string)
 	if !ok {
 		wac.isLoggedIn(false)
 		return fmt.Errorf("Wid not found: %s", wid)
 	}
-	wac.session.Wid = wid
+	session.Wid = wid
 
 	//wac.session.ClientToken = info["clientToken"].(string)
 	//wac.session.ServerToken = info["serverToken"].(string)
 	//wac.session.Wid = info["wid"].(string)
+	wac.setSession(session)
 	wac.isLoggedIn(true)
 
 	return nil
@@ -532,10 +527,15 @@ func (wac *Conn) resolveChallenge(challenge string) error {
 		return err
 	}
 
-	h2 := hmac.New(sha256.New, wac.session.MacKey)
+	session, err := wac.session()
+	if err != nil {
+		return err
+	}
+
+	h2 := hmac.New(sha256.New, session.MacKey)
 	h2.Write([]byte(decoded))
 
-	ch := []interface{}{"admin", "challenge", base64.StdEncoding.EncodeToString(h2.Sum(nil)), wac.session.ServerToken, wac.session.ClientId}
+	ch := []interface{}{"admin", "challenge", base64.StdEncoding.EncodeToString(h2.Sum(nil)), session.ServerToken, session.ClientId}
 	challengeChan, err := wac.writeJson(ch)
 	if err != nil {
 		return fmt.Errorf("error writing challenge: %v\n", err)
@@ -567,7 +567,8 @@ func (wac *Conn) Logout() error {
 	if err != nil {
 		return fmt.Errorf("error writing logout: %v", err)
 	}
-	wac.session = nil
+
+	wac.setSession(Session{})
 	wac.isLoggedIn(false)
 	return nil
 }

@@ -10,12 +10,12 @@ import (
 
 // Pictures must be JPG 640x640 and 96x96, respectively
 func (wac *Conn) UploadProfilePic(image, preview []byte) (<-chan string, error) {
-	tag := fmt.Sprintf("%d.--%d", time.Now().Unix(), wac.msgCount*19)
+	tag := fmt.Sprintf("%d.--%d", time.Now().Unix(), wac.getMsgCount()*19)
 	n := binary.Node{
 		Description: "action",
 		Attributes: map[string]string{
 			"type":  "set",
-			"epoch": strconv.Itoa(wac.msgCount),
+			"epoch": strconv.Itoa(wac.getMsgCount()),
 		},
 		Content: []interface{}{
 			binary.Node{

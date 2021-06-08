@@ -86,12 +86,11 @@ func (wac *Conn) processReadData(msgType int, msg []byte) error {
 		close(listener)
 		wac.removeListener(data[0])
 	} else if msgType == websocket.BinaryMessage {
-		wac.writerLock.RLock()
-		sess := wac.session
-		wac.writerLock.RUnlock()
-		if sess == nil || sess.MacKey == nil || sess.EncKey == nil {
-			return ErrInvalidWsState
+		_, err := wac.session()
+		if err != nil {
+			return err
 		}
+
 		message, err := wac.decryptBinaryMessage([]byte(data[1]))
 		if err != nil {
 			return errors.Wrap(err, "error decoding binary")
@@ -104,8 +103,12 @@ func (wac *Conn) processReadData(msgType int, msg []byte) error {
 }
 
 func (wac *Conn) decryptBinaryMessage(msg []byte) (*binary.Node, error) {
+	session, err := wac.session()
+	if err != nil {
+		return nil, err
+	}
 	//message validation
-	h2 := hmac.New(sha256.New, wac.session.MacKey)
+	h2 := hmac.New(sha256.New, session.MacKey)
 	if len(msg) < 33 {
 		var response struct {
 			Status int `json:"status"`
@@ -127,7 +130,7 @@ func (wac *Conn) decryptBinaryMessage(msg []byte) (*binary.Node, error) {
 	}
 
 	// message decrypt
-	d, err := cbc.Decrypt(wac.session.EncKey, nil, msg[32:])
+	d, err := cbc.Decrypt(session.EncKey, nil, msg[32:])
 	if err != nil {
 		return nil, errors.Wrap(err, "decrypting message with AES-CBC failed")
 	}

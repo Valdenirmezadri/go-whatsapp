@@ -73,20 +73,22 @@ It holds all necessary information to make the package work internally.
 */
 type Conn struct {
 	ws *websocketWrapper
-	//connLock sync.RWMutex
+
+	connLock    sync.RWMutex
+	handlerLock sync.RWMutex
+
 	listener *listenerWrapper
 
 	connected bool
 	loggedIn  bool
-	//statusConnectionLock sync.RWMutex
-	wg *sync.WaitGroup
+	wg        *sync.WaitGroup
 
-	session     *Session
+	_session    Session
 	sessionLock uint32
-	handler     []Handler
-	handlerLock *sync.RWMutex
+	_handler    []Handler
 
-	msgCount       int
+	msgCountLock   sync.RWMutex
+	_msgCount      int
 	msgTimeout     time.Duration
 	Info           *Info
 	Store          *Store
@@ -102,6 +104,35 @@ type Conn struct {
 	Proxy func(*http.Request) (*url.URL, error)
 
 	writerLock sync.RWMutex
+}
+
+func (wac *Conn) msgCount() {
+	wac.msgCountLock.Lock()
+	wac._msgCount++
+	wac.msgCountLock.Unlock()
+}
+
+func (wac *Conn) getMsgCount() int {
+	wac.msgCountLock.Lock()
+	defer wac.msgCountLock.Unlock()
+	return wac._msgCount
+}
+
+func (wac *Conn) session() (Session, error) {
+	wac.connLock.RLock()
+	s := wac._session
+	wac.connLock.RUnlock()
+
+	if s.MacKey == nil || s.EncKey == nil {
+		return Session{}, ErrInvalidWsState
+	}
+	return s, nil
+}
+
+func (wac *Conn) setSession(s Session) {
+	wac.connLock.Lock()
+	wac._session = s
+	wac.connLock.Unlock()
 }
 
 type websocketWrapper struct {
@@ -149,17 +180,18 @@ func NewConnWithOptions(opt *Options) (*Conn, error) {
 		return nil, ErrOptionsNotProvided
 	}
 	wac := &Conn{
-		handler:         make([]Handler, 0),
-		msgCount:        0,
-		msgTimeout:      opt.Timeout,
-		Store:           newStore(),
-		handlerLock:     new(sync.RWMutex),
+		_handler:   make([]Handler, 0),
+		_msgCount:  0,
+		msgTimeout: opt.Timeout,
+		Store:      newStore(),
+		//_handlerLock:    new(sync.RWMutex),
+		//connLock:        new(sync.RWMutex),
 		longClientName:  "github.com/Valdenirmezadri/go-whatsapp",
 		shortClientName: "go-whatsapp",
 		clientVersion:   "0.1.0",
 	}
 	if opt.Handler != nil {
-		wac.handler = opt.Handler
+		wac._handler = opt.Handler
 	}
 	if opt.Store != nil {
 		wac.Store = opt.Store
@@ -245,14 +277,14 @@ func (wac *Conn) Disconnect() (Session, error) {
 
 	err := wac.ws.conn.Close()
 
-	wac.writerLock.Lock()
+	//todo lock ws when disconnect?
 	wac.ws = nil
-	wac.writerLock.Unlock()
 
-	if wac.session == nil {
+	session, err := wac.session()
+	if err != nil {
 		return Session{}, err
 	}
-	return *wac.session, err
+	return session, err
 }
 
 func (wac *Conn) AdminTest() (bool, error) {
@@ -288,28 +320,28 @@ func (wac *Conn) keepAlive(minIntervalMs int, maxIntervalMs int) {
 
 // IsConnected set whether the server connection is established or not
 func (wac *Conn) isConnected(b bool) {
-	wac.writerLock.Lock()
-	defer wac.writerLock.Unlock()
+	wac.connLock.Lock()
+	defer wac.connLock.Unlock()
 	wac.connected = b
 }
 
 //IsLoggedIn set whether the you are logged in or not
 func (wac *Conn) isLoggedIn(b bool) {
-	wac.writerLock.Lock()
-	defer wac.writerLock.Unlock()
+	wac.connLock.Lock()
+	defer wac.connLock.Unlock()
 	wac.loggedIn = b
 }
 
 // IsConnected returns whether the server connection is established or not
 func (wac *Conn) IsConnected() bool {
-	wac.writerLock.RLock()
-	defer wac.writerLock.RUnlock()
+	wac.connLock.RLock()
+	defer wac.connLock.RUnlock()
 	return wac.connected
 }
 
 //IsLoggedIn returns whether the you are logged in or not
 func (wac *Conn) IsLoggedIn() bool {
-	wac.writerLock.RLock()
-	defer wac.writerLock.RUnlock()
+	wac.connLock.RLock()
+	defer wac.connLock.RUnlock()
 	return wac.loggedIn
 }

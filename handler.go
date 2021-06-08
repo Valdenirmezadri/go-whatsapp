@@ -157,6 +157,19 @@ type NewContactHandler interface {
 	HandleNewContact(contact Contact)
 }
 
+func (wac *Conn) handlers() []Handler {
+	wac.handlerLock.RLock()
+	handlers := wac._handler
+	wac.handlerLock.RUnlock()
+	return handlers
+}
+
+func (wac *Conn) SetHandlers(h []Handler) {
+	wac.handlerLock.Lock()
+	wac._handler = h
+	wac.handlerLock.Unlock()
+}
+
 /*
 AddHandler adds an handler to the list of handler that receive dispatched messages.
 The provided handler must at least implement the Handler interface. Additionally implemented
@@ -164,24 +177,24 @@ handlers(TextMessageHandler, ImageMessageHandler) are optional. At runtime it is
 and they are called if so and needed.
 */
 func (wac *Conn) AddHandler(handler Handler) {
-	wac.handlerLock.Lock()
-	defer wac.handlerLock.Unlock()
-	wac.handler = append(wac.handler, handler)
+	handlers := wac.handlers()
+	handlers = append(handlers, handler)
+	wac.SetHandlers(handlers)
 }
 
 // RemoveHandler removes a handler from the list of handlers that receive dispatched messages.
 func (wac *Conn) RemoveHandler(handler Handler) bool {
-	wac.handlerLock.Lock()
-	defer wac.handlerLock.Unlock()
+	handlers := wac.handlers()
 	i := -1
-	for k, v := range wac.handler {
+	for k, v := range handlers {
 		if v == handler {
 			i = k
 			break
 		}
 	}
 	if i > -1 {
-		wac.handler = append(wac.handler[:i], wac.handler[i+1:]...)
+		handlers = append(handlers[:i], handlers[i+1:]...)
+		wac.SetHandlers(handlers)
 		return true
 	}
 	return false
@@ -189,9 +202,7 @@ func (wac *Conn) RemoveHandler(handler Handler) bool {
 
 // RemoveHandlers empties the list of handlers that receive dispatched messages.
 func (wac *Conn) RemoveHandlers() {
-	wac.handlerLock.Lock()
-	defer wac.handlerLock.Unlock()
-	wac.handler = make([]Handler, 0)
+	wac.SetHandlers(make([]Handler, 0))
 }
 
 func (wac *Conn) shouldCallSynchronously(handler Handler) bool {
@@ -200,9 +211,7 @@ func (wac *Conn) shouldCallSynchronously(handler Handler) bool {
 }
 
 func (wac *Conn) handle(message interface{}) {
-	wac.handlerLock.RLock()
-	handlers := wac.handler
-	wac.handlerLock.RUnlock()
+	handlers := wac.handlers()
 
 	wac.handleWithCustomHandlers(message, handlers)
 }
@@ -387,7 +396,9 @@ func (wac *Conn) handleContacts(contacts interface{}) {
 			contactNode.Attributes["short"],
 		})
 	}
-	for _, h := range wac.handler {
+
+	handlers := wac.handlers()
+	for _, h := range handlers {
 		if x, ok := h.(ContactListHandler); ok {
 			if wac.shouldCallSynchronously(h) {
 				x.HandleContactList(contactList)
@@ -420,7 +431,9 @@ func (wac *Conn) handleChats(chats interface{}) {
 			chatNode.Attributes["spam"],
 		})
 	}
-	for _, h := range wac.handler {
+
+	handlers := wac.handlers()
+	for _, h := range handlers {
 		if x, ok := h.(ChatListHandler); ok {
 			if wac.shouldCallSynchronously(h) {
 				x.HandleChatList(chatList)
