@@ -19,7 +19,7 @@ import (
 )
 
 //represents the WhatsAppWeb client version
-var waVersion = []int{2, 2110, 10}
+var waVersion = []int{2, 2121, 6}
 var rmwVersion = &sync.RWMutex{}
 
 /*
