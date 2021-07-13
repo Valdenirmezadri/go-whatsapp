@@ -209,6 +209,7 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 	if err := wac.connect(); err != nil && err != ErrAlreadyConnected {
 		return session, err
 	}
+
 	//logged in?!?
 	_, err := wac.session()
 	if err == nil {
@@ -269,6 +270,7 @@ func (wac *Conn) Login(qrChan chan<- string) (Session, error) {
 	case <-time.After(time.Duration(resp["ttl"].(float64)) * time.Millisecond):
 		return session, fmt.Errorf("qr code scan timed out")
 	}
+
 	info := resp2[1].(map[string]interface{})
 
 	wac.Info = newInfoFromReq(info)
@@ -482,6 +484,7 @@ func (wac *Conn) Restore() error {
 	}
 
 	info := connResp[1].(map[string]interface{})
+
 	wac.Info = newInfoFromReq(info)
 
 	session, err = wac.session()
@@ -570,5 +573,6 @@ func (wac *Conn) Logout() error {
 
 	wac.setSession(Session{})
 	wac.isLoggedIn(false)
+
 	return nil
 }
